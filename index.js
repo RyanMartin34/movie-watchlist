@@ -10,9 +10,6 @@ async function searchMovies(event) {
   const userQuery = userSearchInput.value.trim();
 
   if (!userQuery) {
-    searchResultsContainer.innerHTML = `
-    <p class="no-results">Please enter a movie title.</p>
-    `;
     return;
   }
 
@@ -39,12 +36,17 @@ async function searchMovies(event) {
 async function renderMovies(movieIds) {
   let html = "";
 
-  for (const movieId of movieIds) {
-    const response = await fetch(
-      `http://www.omdbapi.com/?apikey=6ac59585&i=${movieId}`,
-    );
-    const movie = await response.json();
+  const movies = await Promise.all(
+    movieIds.map(async function (movieId) {
+      const response = await fetch(
+        `http://www.omdbapi.com/?apikey=6ac59585&i=${movieId}`,
+      );
 
+      return response.json();
+    }),
+  );
+
+  movies.forEach(function (movie) {
     html += `
     <div class="search-result-item">
         <img class="search-result-image" src="${movie.Poster}">
@@ -66,8 +68,7 @@ async function renderMovies(movieIds) {
         </div>
     </div>
     `;
-  }
-
+  });
   searchResultsContainer.innerHTML = html;
   const watchlistBtn = document.querySelectorAll(".watchlist-btn");
   watchlistBtn.forEach(function (button) {
@@ -84,11 +85,18 @@ async function addToWatchlist(event) {
   );
 
   const movie = await response.json();
-  watchlist.push(movie);
 
-  localStorage.setItem("watchlist", JSON.stringify(watchlist));
+  const checkIfAdded = watchlist.some(function (item) {
+    return item.imdbID === movie.imdbID;
+  });
+
+  if (!checkIfAdded) {
+    watchlist.push(movie);
+  }
 
   buttonPressed.textContent = "Added";
   buttonPressed.disabled = true;
   buttonPressed.style.cursor = "not-allowed";
+
+  localStorage.setItem("watchlist", JSON.stringify(watchlist));
 }
